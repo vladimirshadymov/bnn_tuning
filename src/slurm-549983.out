@@ -1,0 +1,11 @@
+/home/LFMGSEIT/shadymov.va/miniconda3/envs/net/lib/python3.6/site-packages/torch/nn/functional.py:1339: UserWarning: nn.functional.tanh is deprecated. Use torch.tanh instead.
+  warnings.warn("nn.functional.tanh is deprecated. Use torch.tanh instead.")
+Traceback (most recent call last):
+  File "tuning_simulation.py", line 106, in <module>
+    main()
+  File "tuning_simulation.py", line 101, in main
+    tuning(args, model, device, train_loader, optimizer, epoch, prob_rate=0)
+  File "/home/LFMGSEIT/shadymov.va/workspace/bnn_tuning/src/training_routines.py", line 76, in tuning
+    optimizer.synchronize()
+AttributeError: 'SGD' object has no attribute 'synchronize'
+srun: error: node5-3: task 0: Exited with exit code 1

@@ -1,0 +1,2 @@
+/home/LFMGSEIT/shadymov.va/miniconda3/envs/net/lib/python3.6/site-packages/torch/nn/functional.py:1339: UserWarning: nn.functional.tanh is deprecated. Use torch.tanh instead.
+  warnings.warn("nn.functional.tanh is deprecated. Use torch.tanh instead.")
