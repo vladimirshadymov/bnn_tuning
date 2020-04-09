@@ -67,33 +67,9 @@ def main():
 
     model = MnistDenseBNN(HIDDEN_SIZE).to(device)
 
-    test_accuracy = []
-    train_accuracy = []
-
-
-    model.load_state_dict(torch.load(f"../model/mnist_bnn_{HIDDEN_SIZE}.pt"))
-    model.quantize_accumulative_weigths()
-
-    # noise addition 
-    model.set_noise_std(std=0.5)
-    model.set_noise(True)
-    model.add_bit_error(bit_error_rate = 1e-1)
-
-    for param in model.parameters():
-        param.requires_grad_(False)
-
-    params = []
-    for layer in model.modules():
-        if isinstance(layer, BinarizedLinear):
-            layer.weight.requires_grad_(True)
-            params.append(layer.weight)
-
-
-    optimizer = optim.Adam(params, lr=1.5)
-
-    test(args, model, device, test_loader=test_loader, train_loader=train_loader)
-
     prob_rate_arr = np.flip(np.arange(-7, -3.9, 0.5))
+    NOISE_STD = 0.5
+    BER = 1e-1
 
     d_train = []
     d_test = []
@@ -105,20 +81,34 @@ def main():
         model.quantize_accumulative_weigths()
 
         # noise addition 
-        model.set_noise_std(std=0.5)
+        model.set_noise_std(std=NOISE_STD)
         model.set_noise(True)
-        model.add_bit_error(bit_error_rate = 10**p)
+        model.add_bit_error(bit_error_rate = BER*HIDDEN_SIZE/200)
+
+        print("BER: ", BER*HIDDEN_SIZE/200)
+
+        # freezing parameters
+        for param in model.parameters():
+            param.requires_grad_(False)
+
+        params = []
+        for layer in model.modules():
+            if isinstance(layer, BinarizedLinear):
+                layer.weight.requires_grad_(True)
+                params.append(layer.weight)
+
+        optimizer = optim.Adam(params, lr=1.5)
 
         test_accuracy = [10**p]
         train_accuracy = [10**p]
 
-        print(f'Probability rate: {p}')
+        print(f'Probability rate: {10**p}')
 
         test(args, model, device, test_loader, train_loader, test_accuracy, train_accuracy)
 
         for epoch in range(1, np.int(10**(prob_rate_arr[0] - p))*args.epochs + 1):
             print('Epoch:', epoch)
-            tuning(args, model, device, train_loader, optimizer, epoch, prob_rate=p)
+            tuning(args, model, device, train_loader, optimizer, epoch, prob_rate=10**p)
             test(args, model, device, test_loader, train_loader, test_accuracy, train_accuracy)
 
         d_test.append(test_accuracy)

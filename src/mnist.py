@@ -17,21 +17,21 @@ class MnistDenseBNN(nn.Module):
         self.hidden_layer_size = hidden_layer_size
 
         self.layer1 = nn.Sequential(
-            BinarizedLinear(in_features=28*28, out_features=HIDDEN_SIZE),
+            BinarizedLinear(in_features=28*28, out_features=hidden_layer_size),
             nn.Dropout(0.2),
-            nn.BatchNorm1d(HIDDEN_SIZE),
+            nn.BatchNorm1d(hidden_layer_size),
             Binarization()
         )
 
         self.layer2 = nn.Sequential(
-            BinarizedLinear(in_features=HIDDEN_SIZE, out_features=HIDDEN_SIZE),
+            BinarizedLinear(in_features=hidden_layer_size, out_features=hidden_layer_size),
             nn.Dropout(0.2),
-            nn.BatchNorm1d(HIDDEN_SIZE),
+            nn.BatchNorm1d(hidden_layer_size),
             Binarization()
         )
 
         self.layer3 = nn.Sequential(
-            BinarizedLinear(in_features=HIDDEN_SIZE, out_features=10),
+            BinarizedLinear(in_features=hidden_layer_size, out_features=10),
             nn.Dropout(0.2),
             nn.BatchNorm1d(10)
         )
