@@ -11,12 +11,10 @@ from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 import numpy as np
 
-HIDDEN_SIZE = 700
-
 class MnistDenseBNN(nn.Module):
-    def __init__(self):
+    def __init__(self, hidden_layer_size=100):
         super(MnistDenseBNN, self).__init__()
-        self.hidden_layer_size = HIDDEN_SIZE
+        self.hidden_layer_size = hidden_layer_size
 
         self.layer1 = nn.Sequential(
             BinarizedLinear(in_features=28*28, out_features=HIDDEN_SIZE),
@@ -97,6 +95,7 @@ def main():
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     
+    HIDDEN_SIZE = 100
 
     torch.manual_seed(args.seed)
 
@@ -118,7 +117,7 @@ def main():
         ])),
         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
-    model = MnistDenseBNN().to(device)
+    model = MnistDenseBNN(HIDDEN_SIZE).to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=0)
     scheduler = StepLR(optimizer, step_size=50, gamma=0.5)
 

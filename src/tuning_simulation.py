@@ -36,10 +36,14 @@ def main():
 
     parser.add_argument('--save-model', action='store_true', default=False,
                         help='For Saving the current Model')
+
+    parser.add_argument('--model-size', type=int, default=100, metavar='S',
+                        help='random seed (default: 1)')
+
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     
-    HIDDEN_SIZE = 400 ###############################################################################################################
+    HIDDEN_SIZE = args.model_size 
 
     torch.manual_seed(args.seed)
 
@@ -61,7 +65,7 @@ def main():
         ])),
         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
-    model = MnistDenseBNN().to(device)
+    model = MnistDenseBNN(HIDDEN_SIZE).to(device)
 
     test_accuracy = []
     train_accuracy = []
@@ -89,7 +93,7 @@ def main():
 
     test(args, model, device, test_loader=test_loader, train_loader=train_loader)
 
-    prob_rate_arr = np.linspace(0, 1e-5, 101)
+    prob_rate_arr = np.flip(np.arange(-7, -3.9, 0.5))
 
     d_train = []
     d_test = []
@@ -97,23 +101,22 @@ def main():
     print(f"Model hidden layer size: {HIDDEN_SIZE}")
 
     for p in prob_rate_arr:
-        if p==0 : continue
         model.load_state_dict(torch.load(f"../model/mnist_bnn_{HIDDEN_SIZE}.pt"))
         model.quantize_accumulative_weigths()
 
         # noise addition 
         model.set_noise_std(std=0.5)
         model.set_noise(True)
-        model.add_bit_error(bit_error_rate = 1e-1)
+        model.add_bit_error(bit_error_rate = 10**p)
 
-        test_accuracy = [p]
-        train_accuracy = [p]
+        test_accuracy = [10**p]
+        train_accuracy = [10**p]
 
         print(f'Probability rate: {p}')
 
         test(args, model, device, test_loader, train_loader, test_accuracy, train_accuracy)
 
-        for epoch in range(1, args.epochs + 1):
+        for epoch in range(1, np.int(10**(prob_rate_arr[0] - p))*args.epochs + 1):
             print('Epoch:', epoch)
             tuning(args, model, device, train_loader, optimizer, epoch, prob_rate=p)
             test(args, model, device, test_loader, train_loader, test_accuracy, train_accuracy)
