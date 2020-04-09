@@ -67,62 +67,56 @@ def main():
 
     model = MnistDenseBNN(HIDDEN_SIZE).to(device)
 
-    prob_rate_arr = np.flip(np.arange(-7, -3.9, 0.5))
     NOISE_STD = 0.5
     BER = 1e-1
 
-    d_train = []
-    d_test = []
-
     print(f"Model hidden layer size: {HIDDEN_SIZE}")
 
-    for p in prob_rate_arr:
-        model.load_state_dict(torch.load(f"../model/mnist_bnn_{HIDDEN_SIZE}.pt"))
-        model.quantize_accumulative_weigths()
+    model.load_state_dict(torch.load(f"../model/mnist_bnn_{HIDDEN_SIZE}.pt"))
+    model.quantize_accumulative_weigths()
 
-        # noise addition 
-        model.set_noise_std(std=NOISE_STD)
-        model.set_noise(True)
-        model.add_bit_error(bit_error_rate = BER*HIDDEN_SIZE/200)
+    # noise addition 
+    model.set_noise_std(std=NOISE_STD)
+    model.set_noise(True)
+    model.add_bit_error(bit_error_rate = BER*HIDDEN_SIZE/200)
 
-        print("BER: ", BER*HIDDEN_SIZE/200)
+    print("BER: ", BER*HIDDEN_SIZE/200)
 
-        # freezing parameters
-        for param in model.parameters():
-            param.requires_grad_(False)
+    # freezing parameters
+    for param in model.parameters():
+        param.requires_grad_(False)
 
-        params = []
-        for layer in model.modules():
-            if isinstance(layer, BinarizedLinear):
-                layer.weight.requires_grad_(True)
-                params.append(layer.weight)
+    params = []
+    for layer in model.modules():
+        if isinstance(layer, BinarizedLinear):
+            layer.weight.requires_grad_(True)
+            params.append(layer.weight)
 
-        optimizer = optim.Adam(params, lr=1.5)
+    optimizer = optim.Adam(params, lr=1.5)
 
-        test_accuracy = [10**p]
-        train_accuracy = [10**p]
+    test_accuracy = []
+    train_accuracy = []
 
-        print(f'Probability rate: {10**p}')
+    PROB_RATE = 5e-7
 
+    print(f'Probability rate: {PROB_RATE}')
+
+    test(args, model, device, test_loader, train_loader, test_accuracy, train_accuracy)
+
+    epoch = 1
+
+    while True:
+        print('Epoch:', epoch)
+        epoch +=1
+        tuning(args, model, device, train_loader, optimizer, epoch, prob_rate=PROB_RATE)
         test(args, model, device, test_loader, train_loader, test_accuracy, train_accuracy)
 
-        for epoch in range(1, np.int(10**(prob_rate_arr[0] - p))*args.epochs + 1):
-            print('Epoch:', epoch)
-            tuning(args, model, device, train_loader, optimizer, epoch, prob_rate=10**p)
-            test(args, model, device, test_loader, train_loader, test_accuracy, train_accuracy)
-
-        d_test.append(test_accuracy)
-        d_train.append(train_accuracy)
+        d = [train_accuracy, test_accuracy]
         
-        export_data = zip_longest(*d_train, fillvalue='')
-        with open(f'../log/mnist_bnn_tuning_train_{HIDDEN_SIZE}.csv', 'w', encoding="ISO-8859-1", newline='') as report_file:
+        export_data = zip_longest(*d, fillvalue='')
+        with open(f'../log/mnist_bnn_tuning_convergence_{HIDDEN_SIZE}.csv', 'w', encoding="ISO-8859-1", newline='') as report_file:
             wr = csv.writer(report_file)
-            wr.writerows(export_data)
-        report_file.close()
-
-        export_data = zip_longest(*d_test, fillvalue='')
-        with open(f'../log/mnist_bnn_tuning_test_{HIDDEN_SIZE}.csv', 'w', encoding="ISO-8859-1", newline='') as report_file:
-            wr = csv.writer(report_file)
+            wr.writerow(("Train accuracy", "Test accuracy"))
             wr.writerows(export_data)
         report_file.close()
 
