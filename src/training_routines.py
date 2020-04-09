@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from binarized_layers import BinarizedLinear
 
@@ -59,37 +60,26 @@ def test(args, model, device, test_loader, train_loader=None, test_accuracy=None
 
 def tuning(args, model, device, train_loader, optimizer, epoch, prob_rate=0):
     model.train()
+    
+    for m in model.modules():
+        if isinstance(m, nn.BatchNorm1d):
+            m.eval()
+        if isinstance(m, nn.Dropout):
+            m.eval()
+    
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
-        model.quantize_accumulative_weigths()
         output = model(data)
+        
+        model.quantize_accumulative_weigths()
         loss = F.cross_entropy(output, target, reduction='mean')
         loss.backward()
+
         model.calc_prop_grad(prob_rate=prob_rate)
-       
-        # for p in model.parameters():
-        #     if p.grad is not None:
-        #         # print(p.size())
-        #         p.grad.data.mul_(0)
-
-        
-        # optimizer.zero_grad()
-
-        # print("optimizer")
-        # for layer in model.modules():
-        #     if isinstance(layer, BinarizedLinear):
-        #         print(layer.weight.data)
-        # print("opt grads")
-        # for layer in model.modules():
-        #     if isinstance(layer, BinarizedLinear):
-        #         print(layer.weight.grad*10)
         optimizer.step()
-        # print("optimizer after")
-        # for layer in model.modules():
-        #     if isinstance(layer, BinarizedLinear):
-        #         print(layer.weight.data)
         model.quantize_accumulative_weigths()
+        
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),

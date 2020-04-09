@@ -10,4 +10,4 @@
 #SBATCH --job-name=c10_stt
 
 module load cuda/10.0
-srun python3 -u tuning_simulation.py --batch-size=2 --lr=1e-2 --test-batch-size=2 --epoch=100 --save-model --cuda-num=0 > ../log/mnist_bnn_tuning.log
+srun python3 -u tuning_simulation.py --batch-size=2 --lr=1e-2 --test-batch-size=2 --epoch=100 --log-interval=10000 --save-model --cuda-num=0 > ../log/mnist_bnn_tuning_400.log

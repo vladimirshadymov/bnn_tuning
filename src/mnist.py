@@ -11,28 +11,29 @@ from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 import numpy as np
 
+HIDDEN_SIZE = 700
+
 class MnistDenseBNN(nn.Module):
     def __init__(self):
         super(MnistDenseBNN, self).__init__()
-        self.mul_idx = 1
+        self.hidden_layer_size = HIDDEN_SIZE
 
         self.layer1 = nn.Sequential(
-            BinarizedLinear(in_features=28*28, out_features=28*28*self.mul_idx),
+            BinarizedLinear(in_features=28*28, out_features=HIDDEN_SIZE),
             nn.Dropout(0.2),
-            nn.BatchNorm1d(28*28*self.mul_idx),
+            nn.BatchNorm1d(HIDDEN_SIZE),
             Binarization()
         )
 
-
         self.layer2 = nn.Sequential(
-            BinarizedLinear(in_features=28*28*self.mul_idx, out_features=28*28*self.mul_idx),
+            BinarizedLinear(in_features=HIDDEN_SIZE, out_features=HIDDEN_SIZE),
             nn.Dropout(0.2),
-            nn.BatchNorm1d(28*28*self.mul_idx),
+            nn.BatchNorm1d(HIDDEN_SIZE),
             Binarization()
         )
 
         self.layer3 = nn.Sequential(
-            BinarizedLinear(in_features=28*28*self.mul_idx, out_features=10),
+            BinarizedLinear(in_features=HIDDEN_SIZE, out_features=10),
             nn.Dropout(0.2),
             nn.BatchNorm1d(10)
         )
@@ -63,7 +64,11 @@ class MnistDenseBNN(nn.Module):
         for layer in self.modules():
             if isinstance(layer, BinarizedLinear):
                 layer.calc_prop_grad(prob_rate=prob_rate)
-        
+    
+    def add_bit_error(self, bit_error_rate = 0):
+        for layer in self.modules():
+            if isinstance(layer, BinarizedLinear):
+                layer.add_bit_error(bit_error_rate = bit_error_rate)
 
 def main():
     # Training settings
@@ -128,13 +133,14 @@ def main():
         
         if epoch>=10:
             if (args.save_model):
-                torch.save(model.state_dict(), "../model/mnist_bnn.pt")
+                torch.save(model.state_dict(), f"../model/mnist_bnn_{HIDDEN_SIZE}.pt")
             d = [train_accuracy, test_accuracy]
             export_data = zip_longest(*d, fillvalue='')
-            with open('../model/mnist_bnn_report.csv', 'w', encoding="ISO-8859-1", newline='') as report_file:
+            with open(f'../model/mnist_bnn_report_{HIDDEN_SIZE}.csv', 'w', encoding="ISO-8859-1", newline='') as report_file:
                 wr = csv.writer(report_file)
                 wr.writerow(("Train accuracy", "Test accuracy"))
                 wr.writerows(export_data)
             report_file.close()
 
-    
+if __name__ == '__main__':
+    main()

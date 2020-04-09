@@ -39,6 +39,7 @@ def main():
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     
+    HIDDEN_SIZE = 400 ###############################################################################################################
 
     torch.manual_seed(args.seed)
 
@@ -65,46 +66,72 @@ def main():
     test_accuracy = []
     train_accuracy = []
 
-    # noise addition 
-    model.set_noise_std(std=1)
-    model.set_noise(True)
 
-    model.load_state_dict(torch.load("../model/mnist_bnn.pt"))
+    model.load_state_dict(torch.load(f"../model/mnist_bnn_{HIDDEN_SIZE}.pt"))
     model.quantize_accumulative_weigths()
 
+    # noise addition 
+    model.set_noise_std(std=0.5)
+    model.set_noise(True)
+    model.add_bit_error(bit_error_rate = 1e-1)
+
     for param in model.parameters():
-        param.requires_grad = False
+        param.requires_grad_(False)
 
     params = []
     for layer in model.modules():
         if isinstance(layer, BinarizedLinear):
-            layer.weight.requires_grad = True
-            params.extend(layer.weight)
-    
-    # for param in model.parameters():
-    #     if not param.requires_grad:
-    #         param.detach_()
-    
+            layer.weight.requires_grad_(True)
+            params.append(layer.weight)
 
-    # for p in model.parameters():
-    #     p.requires_grad = False
 
-    # for layer in model.modules():
-    #     if isinstance(layer, BinarizedLinear):
-    #         layer.weight.requires_grad = True
-
-    # for p in model.parameters():
-    #     print(p.requires_grad)
-
-    optimizer = optim.SGD(params, lr=1.5)
+    optimizer = optim.Adam(params, lr=1.5)
 
     test(args, model, device, test_loader=test_loader, train_loader=train_loader)
 
-    for epoch in range(1, args.epochs + 1):
-        print('Epoch:', epoch)
-        tuning(args, model, device, train_loader, optimizer, epoch, prob_rate=0)
+    prob_rate_arr = np.linspace(0, 1e-5, 101)
+
+    d_train = []
+    d_test = []
+
+    print(f"Model hidden layer size: {HIDDEN_SIZE}")
+
+    for p in prob_rate_arr:
+        if p==0 : continue
+        model.load_state_dict(torch.load(f"../model/mnist_bnn_{HIDDEN_SIZE}.pt"))
+        model.quantize_accumulative_weigths()
+
+        # noise addition 
+        model.set_noise_std(std=0.5)
+        model.set_noise(True)
+        model.add_bit_error(bit_error_rate = 1e-1)
+
+        test_accuracy = [p]
+        train_accuracy = [p]
+
+        print(f'Probability rate: {p}')
+
         test(args, model, device, test_loader, train_loader, test_accuracy, train_accuracy)
 
-    
+        for epoch in range(1, args.epochs + 1):
+            print('Epoch:', epoch)
+            tuning(args, model, device, train_loader, optimizer, epoch, prob_rate=p)
+            test(args, model, device, test_loader, train_loader, test_accuracy, train_accuracy)
+
+        d_test.append(test_accuracy)
+        d_train.append(train_accuracy)
+        
+        export_data = zip_longest(*d_train, fillvalue='')
+        with open(f'../log/mnist_bnn_tuning_train_{HIDDEN_SIZE}.csv', 'w', encoding="ISO-8859-1", newline='') as report_file:
+            wr = csv.writer(report_file)
+            wr.writerows(export_data)
+        report_file.close()
+
+        export_data = zip_longest(*d_test, fillvalue='')
+        with open(f'../log/mnist_bnn_tuning_test_{HIDDEN_SIZE}.csv', 'w', encoding="ISO-8859-1", newline='') as report_file:
+            wr = csv.writer(report_file)
+            wr.writerows(export_data)
+        report_file.close()
+
 if __name__ == '__main__':
     main()

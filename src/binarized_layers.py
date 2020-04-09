@@ -83,3 +83,10 @@ class BinarizedLinear(nn.Linear):
             del tmp
             # print(self.weight)
         return
+
+    def add_bit_error(self, bit_error_rate = 0):
+        probs = torch.ones_like(self.weight.data).mul_(1 - bit_error_rate) # switching probabilities
+        switching_tensor = torch.bernoulli(probs).mul(2.).add(-1.)
+        self.weight.data.mul_(switching_tensor)
+        return
+
