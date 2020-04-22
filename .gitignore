@@ -113,6 +113,8 @@ venv.bak/
 *.png
 *.json
 
+slurm-*
+
 data/
 log/
 
