@@ -74,9 +74,16 @@ class BinarizedLinear(nn.Linear):
     
     def calc_prop_grad(self, prob_rate=0):
         with torch.no_grad():
-            tmp = torch.abs(self.weight.grad.data).add_(1e-10).clone()
+            tmp = torch.abs(self.weight.grad.data).add(1e-20).clone()
             self.weight.grad.data.div_(tmp) # norm of grad values
-            tmp = F.tanh(prob_rate*tmp).clone()
+            
+            # tmp = F.tanh(prob_rate*tmp).clone()
+            # tmp.mul_(prob_rate).pow_(2).mul_(-1).exp_().mul_(-1).add_(1) # 1 - exp(-x^2)
+            # tmp.mul_(prob_rate).mul_(-1).exp_().mul_(-1).add_(1) # 1 - exp(-x)
+            tmp.mul_(prob_rate).pow_(2).add_(1).reciprocal_().mul_(-1.).add_(1.) # 1 - 1/(1+x^2)
+            
+            # print(tmp)
+
             tmp = torch.bernoulli(tmp).clone()
             self.weight.grad.data.mul_(tmp)
             # self.weight.grad.mul_(0)

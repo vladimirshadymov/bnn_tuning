@@ -67,14 +67,15 @@ def main():
 
     model = MnistDenseBNN(HIDDEN_SIZE).to(device)
 
-    prob_rate_arr = np.flip(np.arange(-7, -3.9, 0.5))
+    prob_rate_arr = np.flip(np.arange(-7, 1.1, 0.5))
     NOISE_STD = 0.5
-    BER = 1e-1
+    BER = 0.4
 
     d_train = []
     d_test = []
 
     print(f"Model hidden layer size: {HIDDEN_SIZE}")
+    print("1 - 1/(1+x^2)")
 
     for p in prob_rate_arr:
         model.load_state_dict(torch.load(f"../model/mnist_bnn_{HIDDEN_SIZE}.pt"))
@@ -82,10 +83,11 @@ def main():
 
         # noise addition 
         model.set_noise_std(std=NOISE_STD)
-        model.set_noise(True)
-        model.add_bit_error(bit_error_rate = BER*HIDDEN_SIZE/200)
+        # model.set_noise(True)
+        model.set_noise(False)
+        model.add_bit_error(bit_error_rate = BER)
 
-        print("BER: ", BER*HIDDEN_SIZE/200)
+        print("BER: ", BER)
 
         # freezing parameters
         for param in model.parameters():
@@ -97,7 +99,7 @@ def main():
                 layer.weight.requires_grad_(True)
                 params.append(layer.weight)
 
-        optimizer = optim.Adam(params, lr=1.5)
+        optimizer = optim.SGD(params, lr=1.5)
 
         test_accuracy = [10**p]
         train_accuracy = [10**p]
@@ -106,7 +108,7 @@ def main():
 
         test(args, model, device, test_loader, train_loader, test_accuracy, train_accuracy)
 
-        for epoch in range(1, np.int(10**(prob_rate_arr[0] - p))*args.epochs + 1):
+        for epoch in range(1, np.int(10**((prob_rate_arr[0] - p)**0.5))*args.epochs + 1):
             print('Epoch:', epoch)
             tuning(args, model, device, train_loader, optimizer, epoch, prob_rate=10**p)
             test(args, model, device, test_loader, train_loader, test_accuracy, train_accuracy)
@@ -115,13 +117,13 @@ def main():
         d_train.append(train_accuracy)
         
         export_data = zip_longest(*d_train, fillvalue='')
-        with open(f'../log/mnist_bnn_tuning_train_{HIDDEN_SIZE}.csv', 'w', encoding="ISO-8859-1", newline='') as report_file:
+        with open(f'../log/mnist_bnn_tuning_train_sq_{HIDDEN_SIZE}.csv', 'w', encoding="ISO-8859-1", newline='') as report_file:
             wr = csv.writer(report_file)
             wr.writerows(export_data)
         report_file.close()
 
         export_data = zip_longest(*d_test, fillvalue='')
-        with open(f'../log/mnist_bnn_tuning_test_{HIDDEN_SIZE}.csv', 'w', encoding="ISO-8859-1", newline='') as report_file:
+        with open(f'../log/mnist_bnn_tuning_test_sq_{HIDDEN_SIZE}.csv', 'w', encoding="ISO-8859-1", newline='') as report_file:
             wr = csv.writer(report_file)
             wr.writerows(export_data)
         report_file.close()
